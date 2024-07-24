@@ -1,0 +1,21 @@
+cat <<EOL > .gitignore
+# Binaries
+bin/
+obj/
+
+# Build directories
+/tmp
+/vendor
+
+# Go specific
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+*.log
+.idea
+.vscode
+EOL

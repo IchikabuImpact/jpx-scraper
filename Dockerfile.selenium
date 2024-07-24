@@ -1,0 +1,7 @@
+FROM selenium/hub
+USER root
+COPY entrypoint.sh /opt/bin/entrypoint.sh
+RUN chmod +x /opt/bin/entrypoint.sh
+USER seluser
+ENTRYPOINT ["/opt/bin/entrypoint.sh"]
+
