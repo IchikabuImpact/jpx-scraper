@@ -5,7 +5,7 @@ import (
     "fmt"
     "log"
     "net/http"
-    "fbstocks/internal/stockdata"
+    "github.com/IchikabuImpact/jpx-scraper/internal/stockdata"
     "github.com/labstack/echo/v4"
     "github.com/labstack/echo/v4/middleware"
 )
