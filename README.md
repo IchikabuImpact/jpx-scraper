@@ -117,3 +117,41 @@ Test scraper locally:
 
 curl http://localhost:8082/scrape?ticker=1332
 ```
+## System Architecture
+
+The following diagram illustrates the overall architecture of the JPX Scraper.
+
+```plaintext
++------------------+                  +-------------------+
+|                  |                  |                   |
+|  Selenium Hub    |                  |   Selenium Node   |
+|  (selenium-hub)  |                  | (selenium-node)   |
+|  ポート 4445    |                  |                   |
++--------+---------+                  +---------+---------+
+         |                                      |
+         |                                      |
+         |                                      |
+         |                                      |
++--------v---------+                  +---------v---------+
+|                  |                  |                   |
+|  Event Bus       |                  |   Event Bus       |
+|  Publish: 4442   +----------------->|  Subscribe: 4443  |
+|  Subscribe: 4443 <------------------+  Publish: 4442    |
++--------+---------+                  +---------+---------+
+         |                                      |
+         |          +---------------------------+
+         |          |
+         |          |
+         v          v
++--------+---------+                  +--------------------+
+|                  |                  |                    |
+|  JPX Scraper     |                  |  Apache            |
+|  (jpx-scraper)   |                  |  (Reverse Proxy)   |
+|  ポート 8081     |                  |                    |
++--------+---------+                  +---------+----------+
+         |                                      |
+         |                                      |
+         +--------------------------------------+
+                      selenium-network
+
+

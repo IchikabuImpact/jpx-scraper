@@ -4,6 +4,8 @@ import (
     "encoding/json"
     "fmt"
     "github.com/tebeka/selenium"
+    "regexp"
+    "errors"
 )
 
 // StockData represents the stock data structure
@@ -14,8 +16,22 @@ type StockData struct {
     PreviousClose string `json:"previousClose"`
 }
 
+// ValidateTicker checks if the ticker is valid (only contains letters and numbers)
+func ValidateTicker(ticker string) error {
+    validTicker := regexp.MustCompile(`^[A-Za-z0-9]+$`).MatchString
+    if !validTicker(ticker) {
+        return errors.New("invalid ticker: ticker should only contain letters and numbers")
+    }
+    return nil
+}
+
 // Function to get stock data from an external API
 func GetStockData(ticker string) (StockData, error) {
+    // Validate ticker before proceeding
+    if err := ValidateTicker(ticker); err != nil {
+        return StockData{}, err
+    }
+
     const (
         seleniumURL      = "http://selenium-hub:4445/wd/hub"
         urlGoogleFinance = "https://www.google.com/finance/quote/%s:TYO?sa=X&ved=2ahUKEwiG1vL6yZzxAhUD4zgGHQGxD7QQ3ecFegQINRAS"
@@ -93,4 +109,3 @@ func GetStockDataJSON(ticker string) (string, error) {
     }
     return string(jsonData), nil
 }
-
