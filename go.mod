@@ -1,4 +1,4 @@
-module fbstocks
+module github.com/IchikabuImpact/jpx-scraper
 
 go 1.22.0
 
