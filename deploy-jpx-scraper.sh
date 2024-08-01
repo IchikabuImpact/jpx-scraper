@@ -33,3 +33,4 @@ echo "Starting JPX Scraper..."
 docker run -d -p 8082:8081 --network selenium-network --name jpx-scraper jpx-scraper
 
 echo "Deployment completed successfully."
+
