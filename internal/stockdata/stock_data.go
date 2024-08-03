@@ -4,19 +4,12 @@ import (
     "database/sql"
     "encoding/json"
     "fmt"
-    "github.com/tebeka/selenium"
+    "github.com/PuerkitoBio/goquery"
+    "net/http"
     "regexp"
+    "strings" // 追加
     "time"
     "errors"
-)
-
-// 定数を定義
-const (
-    seleniumURL      = "http://selenium-hub:4445/wd/hub"
-    urlGoogleFinance = "https://www.google.com/finance/quote/%s:TYO?hl=ja"
-    companyNameSelector = ".zzDege"
-    currentPriceSelector = ".YMlKec.fxKbKc"
-    previousCloseSelector = "div.P6K39c"
 )
 
 // StockData represents the stock data structure
@@ -36,51 +29,41 @@ func ValidateTicker(ticker string) error {
     return nil
 }
 
-// Function to get stock data from Google Finance
+// Function to get stock data from an external API
 func GetStockData(ticker string) (StockData, error) {
     // Validate ticker before proceeding
     if err := ValidateTicker(ticker); err != nil {
         return StockData{}, err
     }
 
-    caps := selenium.Capabilities{
-        "browserName": "chrome",
-        "goog:chromeOptions": map[string]interface{}{
-            "args": []string{"--headless", "--disable-cache"},
-        },
+    const (
+        KabutanURL = "https://kabutan.jp/stock/?code=%s"
+    )
+
+    url := fmt.Sprintf(KabutanURL, ticker)
+    resp, err := http.Get(url)
+    if err != nil {
+        return StockData{}, fmt.Errorf("failed to fetch data: %v", err)
+    }
+    defer resp.Body.Close()
+
+    if resp.StatusCode != http.StatusOK {
+        return StockData{}, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
     }
 
-    wd, err := selenium.NewRemote(caps, seleniumURL)
+    doc, err := goquery.NewDocumentFromReader(resp.Body)
     if err != nil {
-        fmt.Printf("Error creating new WebDriver: %v\n", err)
-        return StockData{}, fmt.Errorf("error creating new WebDriver: %v", err)
-    }
-    defer wd.Quit()
-
-    // Get stock data from Google Finance
-    err = wd.Get(fmt.Sprintf(urlGoogleFinance, ticker))
-    if err != nil {
-        fmt.Printf("Error loading Google Finance page: %v\n", err)
-        return StockData{}, fmt.Errorf("error loading Google Finance page: %v", err)
+        return StockData{}, fmt.Errorf("failed to parse document: %v", err)
     }
 
-    companyName, err := getElementText(wd, companyNameSelector)
-    if err != nil {
-        fmt.Printf("Error getting company name: %v\n", err)
-        return StockData{}, fmt.Errorf("error getting company name: %v", err)
+    companyName := doc.Find(".si_i1_1 h2").Text()
+    if companyName == "" {
+        return StockData{}, fmt.Errorf("failed to find company name")
     }
 
-    currentPrice, err := getElementText(wd, currentPriceSelector)
-    if err != nil {
-        fmt.Printf("Error getting current price: %v\n", err)
-        return StockData{}, fmt.Errorf("error getting current price: %v", err)
-    }
+    currentPrice := strings.TrimSpace(doc.Find(".si_i1_2 .kabuka").Text())
 
-    previousClose, err := getElementText(wd, previousCloseSelector)
-    if err != nil {
-        fmt.Printf("Error getting previous close: %v\n", err)
-        return StockData{}, fmt.Errorf("error getting previous close: %v", err)
-    }
+    previousClose := strings.TrimSpace(doc.Find("#kobetsu_left dl dd").First().Text())
 
     return StockData{
         Ticker:        ticker,
@@ -88,18 +71,6 @@ func GetStockData(ticker string) (StockData, error) {
         CurrentPrice:  currentPrice,
         PreviousClose: previousClose,
     }, nil
-}
-
-func getElementText(wd selenium.WebDriver, value string) (string, error) {
-    elem, err := wd.FindElement(selenium.ByCSSSelector, value)
-    if err != nil {
-        return "", err
-    }
-    text, err := elem.Text()
-    if err != nil {
-        return "", err
-    }
-    return text, nil
 }
 
 func GetStockDataJSON(ticker string, db *sql.DB) (string, error) {
