@@ -7,7 +7,7 @@ import (
     "github.com/PuerkitoBio/goquery"
     "net/http"
     "regexp"
-    "strings" // 追加
+    "strings"
     "time"
     "errors"
 )
@@ -18,6 +18,7 @@ type StockData struct {
     CompanyName   string `json:"companyName"`
     CurrentPrice  string `json:"currentPrice"`
     PreviousClose string `json:"previousClose"`
+    DividendYield string `json:"dividendYield"`
 }
 
 // ValidateTicker checks if the ticker is valid (only contains letters and numbers)
@@ -62,14 +63,15 @@ func GetStockData(ticker string) (StockData, error) {
     }
 
     currentPrice := strings.TrimSpace(doc.Find(".si_i1_2 .kabuka").Text())
-
     previousClose := strings.TrimSpace(doc.Find("#kobetsu_left dl dd").First().Text())
+    dividendYield := strings.TrimSpace(doc.Find("#stockinfo_i3 tbody tr:nth-child(1) td:nth-child(3)").Text())
 
     return StockData{
         Ticker:        ticker,
         CompanyName:   companyName,
         CurrentPrice:  currentPrice,
         PreviousClose: previousClose,
+        DividendYield: dividendYield,
     }, nil
 }
 
