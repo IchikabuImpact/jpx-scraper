@@ -10,13 +10,21 @@ import (
     "errors"
 )
 
+// 定数を定義
+const (
+    seleniumURL      = "http://selenium-hub:4445/wd/hub"
+    urlGoogleFinance = "https://www.google.com/finance/quote/%s:TYO?hl=ja"
+    companyNameSelector = ".zzDege"
+    currentPriceSelector = ".YMlKec.fxKbKc"
+    previousCloseSelector = "div.P6K39c"
+)
+
 // StockData represents the stock data structure
 type StockData struct {
     Ticker        string `json:"ticker"`
     CompanyName   string `json:"companyName"`
     CurrentPrice  string `json:"currentPrice"`
     PreviousClose string `json:"previousClose"`
-//    DividendYield string `json:"dividendYield"` // 追加
 }
 
 // ValidateTicker checks if the ticker is valid (only contains letters and numbers)
@@ -28,17 +36,12 @@ func ValidateTicker(ticker string) error {
     return nil
 }
 
-// Function to get stock data from an external API
+// Function to get stock data from Google Finance
 func GetStockData(ticker string) (StockData, error) {
     // Validate ticker before proceeding
     if err := ValidateTicker(ticker); err != nil {
         return StockData{}, err
     }
-
-    const (
-        seleniumURL      = "http://selenium-hub:4445/wd/hub"
-        urlGoogleFinance = "https://www.google.com/finance/quote/%s:TYO?hl=ja"
-    )
 
     caps := selenium.Capabilities{
         "browserName": "chrome",
@@ -61,39 +64,29 @@ func GetStockData(ticker string) (StockData, error) {
         return StockData{}, fmt.Errorf("error loading Google Finance page: %v", err)
     }
 
-    companyName, err := getElementText(wd, ".zzDege")
+    companyName, err := getElementText(wd, companyNameSelector)
     if err != nil {
         fmt.Printf("Error getting company name: %v\n", err)
         return StockData{}, fmt.Errorf("error getting company name: %v", err)
     }
 
-    currentPrice, err := getElementText(wd, ".YMlKec.fxKbKc")
+    currentPrice, err := getElementText(wd, currentPriceSelector)
     if err != nil {
         fmt.Printf("Error getting current price: %v\n", err)
         return StockData{}, fmt.Errorf("error getting current price: %v", err)
     }
 
-    previousClose, err := getElementText(wd, "div.P6K39c")
+    previousClose, err := getElementText(wd, previousCloseSelector)
     if err != nil {
         fmt.Printf("Error getting previous close: %v\n", err)
         return StockData{}, fmt.Errorf("error getting previous close: %v", err)
     }
-
-    // 配当利回りの取得
-/*
-    dividendYield, err := getDividendYield(wd)
-    if err != nil {
-        fmt.Printf("Error getting dividend yield: %v\n", err)
-        return StockData{}, fmt.Errorf("error getting dividend yield: %v", err)
-    }
-*/
 
     return StockData{
         Ticker:        ticker,
         CompanyName:   companyName,
         CurrentPrice:  currentPrice,
         PreviousClose: previousClose,
-  //      DividendYield: dividendYield,
     }, nil
 }
 
@@ -108,20 +101,6 @@ func getElementText(wd selenium.WebDriver, value string) (string, error) {
     }
     return text, nil
 }
-/*
-func getDividendYield(wd selenium.WebDriver) (string, error) {
-    xpath := "//div[@aria-describedby='c533']/div[@class='P6K39c']"
-    elem, err := wd.FindElement(selenium.ByXPATH, xpath)
-    if err != nil {
-        return "", err
-    }
-    text, err := elem.Text()
-    if err != nil {
-        return "", err
-    }
-    return text, nil
-}
-*/
 
 func GetStockDataJSON(ticker string, db *sql.DB) (string, error) {
     var jsonData string
