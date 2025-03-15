@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  selenium-hub:
+    build:  # 🔥 ここを修正
+      context: .
+      dockerfile: Dockerfile.selenium
+    container_name: selenium-hub  # 🔥 名前を統一
+    ports:
+      - "4445:4445"  # 🔥 deploy-jpx-scraper.sh に合わせる
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4445/status"]
+      interval: 10s
+      retries: 5
+      start_period: 10s
+    restart: always  # 🔥 再起動時に自動で立ち上がる
+    networks:
+      - selenium-network
+
+  selenium-node:
+    image: selenium/node-chrome
+    container_name: selenium-node  # 🔥 名前を統一
+    depends_on:
+      - selenium-hub
+    environment:
+      - SE_EVENT_BUS_HOST=selenium-hub
+      - SE_EVENT_BUS_PUBLISH_PORT=4442
+      - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+    restart: always  # 🔥 再起動時に自動で立ち上がる
+    networks:
+      - selenium-network
+
+  scraper:
+    build:
+      context: .
+      dockerfile: Dockerfile.go
+    container_name: jpx-scraper  # 🔥 名前を統一
+    depends_on:
+      selenium-hub:
+        condition: service_healthy  # 🔥 Selenium Hub のヘルスチェックが通ってから起動
+    ports:
+      - "8082:8081"
+    environment:
+      - CGO_ENABLED=1
+    restart: always  # 🔥 再起動時に自動で立ち上がる
+    networks:
+      - selenium-network
+
+networks:
+  selenium-network:
+    driver: bridge
+

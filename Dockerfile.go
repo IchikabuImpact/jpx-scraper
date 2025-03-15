@@ -1,5 +1,5 @@
 # ベースイメージを指定
-FROM golang:1.22-alpine
+FROM golang:1.23-alpine
 
 # 必要なパッケージをインストール
 RUN apk add --no-cache gcc musl-dev sqlite wget nmap curl
