@@ -1,8 +1,6 @@
 module github.com/IchikabuImpact/jpx-scraper
 
-go 1.24
-
-toolchain go1.24.0
+go 1.24.3
 
 require (
 	github.com/PuerkitoBio/goquery v1.10.0
