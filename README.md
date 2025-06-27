@@ -126,7 +126,7 @@ The following diagram illustrates the overall architecture of the JPX Scraper.
 |                  |                  |                   |
 |  Selenium Hub    |                  |   Selenium Node   |
 |  (selenium-hub)  |                  | (selenium-node)   |
-|  ポート 4445    |                  |                   |
+|  ポート 4444     |                  |                   |
 +--------+---------+                  +---------+---------+
          |                                      |
          |                                      |
