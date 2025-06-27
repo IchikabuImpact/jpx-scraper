@@ -1,52 +1,67 @@
 version: '3.8'
 
 services:
+  ########################################
+  # Selenium Hub (central coordinator)
+  ########################################
   selenium-hub:
-    build:  # 🔥 ここを修正
+    build:
       context: .
       dockerfile: Dockerfile.selenium
-    container_name: selenium-hub  # 🔥 名前を統一
+    container_name: selenium-hub
     ports:
-      - "4445:4445"  # 🔥 deploy-jpx-scraper.sh に合わせる
+      - "4444:4444"                # Hub のデフォルトポートに合わせる
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4445/status"]
+      test: ["CMD", "curl", "-f", "http://localhost:4444/status"]
       interval: 10s
       retries: 5
       start_period: 10s
-    restart: always  # 🔥 再起動時に自動で立ち上がる
+    restart: always
+    mem_limit: 512m                # Hub は軽いので 512 MB 上限
     networks:
       - selenium-network
 
+  ########################################
+  # Selenium Node (Chrome runtime)
+  ########################################
   selenium-node:
-    image: selenium/node-chrome
-    container_name: selenium-node  # 🔥 名前を統一
+    image: selenium/node-chrome:latest
+    container_name: selenium-node
     depends_on:
       - selenium-hub
     environment:
       - SE_EVENT_BUS_HOST=selenium-hub
       - SE_EVENT_BUS_PUBLISH_PORT=4442
       - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
-    restart: always  # 🔥 再起動時に自動で立ち上がる
+      - SE_NODE_MAX_SESSIONS=1      # 同時セッション数を 1 に制限しメモリ抑制
+    restart: always
+    mem_limit: 1024m               # Chrome は重いので 1 GB 上限
     networks:
       - selenium-network
 
+  ########################################
+  # JPX Scraper (Go app)
+  ########################################
   scraper:
     build:
       context: .
       dockerfile: Dockerfile.go
-    container_name: jpx-scraper  # 🔥 名前を統一
+    container_name: jpx-scraper
     depends_on:
       selenium-hub:
-        condition: service_healthy  # 🔥 Selenium Hub のヘルスチェックが通ってから起動
+        condition: service_healthy  # Hub が healthy になってから起動
     ports:
-      - "8082:8081"
+      - "8082:8081"                # ホスト 8082 → コンテナ 8081
     environment:
       - CGO_ENABLED=1
-    restart: always  # 🔥 再起動時に自動で立ち上がる
+    restart: always
+    mem_limit: 512m                # Go アプリは 512 MB で十分
     networks:
       - selenium-network
 
+##########################################
+# Shared network
+##########################################
 networks:
   selenium-network:
     driver: bridge
-
