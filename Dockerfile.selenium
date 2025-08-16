@@ -1,4 +1,4 @@
-FROM selenium/hub
+FROM selenium/hub@sha256:c32bde083e87492fe91d9c1a47df1210f7cec7977f67e0ae31ac3a35d5309167
 USER root
 COPY entrypoint.sh /opt/bin/entrypoint.sh
 RUN chmod +x /opt/bin/entrypoint.sh
