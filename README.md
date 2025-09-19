@@ -6,7 +6,7 @@ JPX Scraper is a Go application that scrapes stock data from JPX using Selenium 
 
 ### Prerequisites
 
-- Go 1.22 or later
+- Go 1.25 or later
 - Docker
 - Docker Compose (optional, but recommended)
 
