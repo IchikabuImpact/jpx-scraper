@@ -11,15 +11,15 @@ services:
       MARIADB_USER: ${MARIADB_USER}
       MARIADB_PASSWORD: ${MARIADB_PASSWORD}
     ports:
-      - "3306:3306"
+      - "3307:3306"
     volumes:
       - mariadb_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$${MARIADB_ROOT_PASSWORD} --silent"]
+      test: ["CMD-SHELL", "mariadb-admin ping --silent --protocol=TCP -h 127.0.0.1 -uroot -p\"$${MARIADB_ROOT_PASSWORD}\""]      
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 20s
+      retries: 10
+      start_period: 90s
     mem_limit: 1024m
     networks:
       - app-network
@@ -52,10 +52,14 @@ services:
       - SE_EVENT_BUS_HOST=selenium-hub
       - SE_EVENT_BUS_PUBLISH_PORT=4442
       - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
-      - SE_NODE_MAX_SESSIONS=${SE_NODE_MAX_SESSIONS}
+      - SE_NODE_MAX_SESSIONS=1
+      - SE_NODE_OVERRIDE_MAX_SESSIONS=true
+      - JAVA_OPTS=-Xmx256m
+      # 余力あればセッションタイムアウト短縮（放置セッション掃除）
+      - SE_NODE_SESSION_TIMEOUT=120
     restart: unless-stopped
-    shm_size: 2gb
-    mem_limit: 1024m
+    shm_size: 512m      # 2GB -> 512MB
+    mem_limit: 512m     # 1GB -> 512MB
     networks:
       - app-network
 
