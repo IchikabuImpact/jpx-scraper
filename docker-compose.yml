@@ -1,67 +1,97 @@
-
-
 services:
-  ########################################
-  # Selenium Hub (central coordinator)
-  ########################################
+  mariadb:
+    image: mariadb:11.4
+    container_name: mariadb
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+      MARIADB_DATABASE: ${MARIADB_DATABASE}
+      MARIADB_USER: ${MARIADB_USER}
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$${MARIADB_ROOT_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    mem_limit: 1024m
+    networks:
+      - app-network
+
   selenium-hub:
     build:
       context: .
       dockerfile: Dockerfile.selenium
     container_name: selenium-hub
     ports:
-      - "4444:4444"                # Hub のデフォルトポートに合わせる
+      - "4444:4444"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4444/status"]
       interval: 10s
+      timeout: 5s
       retries: 5
       start_period: 10s
-    restart: always
-    mem_limit: 512m                # Hub は軽いので 512 MB 上限
+    restart: unless-stopped
+    mem_limit: 512m
     networks:
-      - selenium-network
+      - app-network
 
-  ########################################
-  # Selenium Node (Chrome runtime)
-  ########################################
   selenium-node:
     image: selenium/node-chrome:latest
     container_name: selenium-node
     depends_on:
-      - selenium-hub
+      selenium-hub:
+        condition: service_healthy
     environment:
       - SE_EVENT_BUS_HOST=selenium-hub
       - SE_EVENT_BUS_PUBLISH_PORT=4442
       - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
-      - SE_NODE_MAX_SESSIONS=1      # 同時セッション数を 1 に制限しメモリ抑制
-    restart: always
-    mem_limit: 1024m               # Chrome は重いので 1 GB 上限
+      - SE_NODE_MAX_SESSIONS=${SE_NODE_MAX_SESSIONS}
+    restart: unless-stopped
+    shm_size: 2gb
+    mem_limit: 1024m
     networks:
-      - selenium-network
+      - app-network
 
-  ########################################
-  # JPX Scraper (Go app)
-  ########################################
   scraper:
     build:
       context: .
-      dockerfile: Dockerfile.go
+      dockerfile: Dockerfile.scraper
     container_name: jpx-scraper
     depends_on:
+      mariadb:
+        condition: service_healthy
       selenium-hub:
-        condition: service_healthy  # Hub が healthy になってから起動
-    ports:
-      - "8082:8081"                # ホスト 8082 → コンテナ 8081
+        condition: service_healthy
+    env_file:
+      - .env
     environment:
-      - CGO_ENABLED=1
-    restart: always
-    mem_limit: 512m                # Go アプリは 512 MB で十分
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_PARAMS: ${DB_PARAMS}
+      DB_MAX_OPEN_CONNS: ${DB_MAX_OPEN_CONNS}
+      DB_MAX_IDLE_CONNS: ${DB_MAX_IDLE_CONNS}
+      DB_CONN_MAX_LIFETIME: ${DB_CONN_MAX_LIFETIME}
+      DB_WAIT_TIMEOUT: ${DB_WAIT_TIMEOUT}
+    ports:
+      - "8082:8081"
+    restart: unless-stopped
+    mem_limit: 512m
     networks:
-      - selenium-network
+      - app-network
 
-##########################################
-# Shared network
-##########################################
+volumes:
+  mariadb_data:
+
 networks:
-  selenium-network:
+  app-network:
     driver: bridge
