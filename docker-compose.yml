@@ -1,7 +1,6 @@
 services:
   mariadb:
     image: mariadb:11.4
-    container_name: mariadb
     restart: unless-stopped
     env_file:
       - .env
@@ -10,41 +9,46 @@ services:
       MARIADB_DATABASE: ${MARIADB_DATABASE}
       MARIADB_USER: ${MARIADB_USER}
       MARIADB_PASSWORD: ${MARIADB_PASSWORD}
+    # メモリ節約系オプション（必要に応じて微調整可）
+    command:
+      - --innodb_buffer_pool_size=128M
+      - --innodb_log_file_size=64M
+      - --max_connections=50
+      - --table_open_cache=256
+      - --tmp_table_size=32M
+      - --performance_schema=OFF
     ports:
       - "3307:3306"
     volumes:
       - mariadb_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "mariadb-admin ping --silent --protocol=TCP -h 127.0.0.1 -uroot -p\"$${MARIADB_ROOT_PASSWORD}\""]      
+      test: ["CMD-SHELL", "mariadb-admin ping --silent --protocol=TCP -h 127.0.0.1 -uroot -p\"$${MARIADB_ROOT_PASSWORD}\""]
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 90s
-    mem_limit: 1024m
+    mem_limit: 512m
     networks:
       - app-network
 
   selenium-hub:
-    build:
-      context: .
-      dockerfile: Dockerfile.selenium
-    container_name: selenium-hub
+    image: selenium/hub:4.23.0
     ports:
       - "4444:4444"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4444/status"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:4444/status"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
     restart: unless-stopped
-    mem_limit: 512m
+    mem_limit: 256m
     networks:
       - app-network
 
+  # ← ここはスケールするので container_name は付けない
   selenium-node:
-    image: selenium/node-chrome:latest
-    container_name: selenium-node
+    image: selenium/node-chrome:4.23.0
     depends_on:
       selenium-hub:
         condition: service_healthy
@@ -54,12 +58,12 @@ services:
       - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
       - SE_NODE_MAX_SESSIONS=1
       - SE_NODE_OVERRIDE_MAX_SESSIONS=true
-      - JAVA_OPTS=-Xmx256m
-      # 余力あればセッションタイムアウト短縮（放置セッション掃除）
       - SE_NODE_SESSION_TIMEOUT=120
+      - SE_ENABLE_TRACING=false
+      - JAVA_OPTS=-Xmx256m
     restart: unless-stopped
-    shm_size: 512m      # 2GB -> 512MB
-    mem_limit: 512m     # 1GB -> 512MB
+    shm_size: 256m
+    mem_limit: 384m
     networks:
       - app-network
 
@@ -86,10 +90,12 @@ services:
       DB_MAX_IDLE_CONNS: ${DB_MAX_IDLE_CONNS}
       DB_CONN_MAX_LIFETIME: ${DB_CONN_MAX_LIFETIME}
       DB_WAIT_TIMEOUT: ${DB_WAIT_TIMEOUT}
+      # （任意）アプリ側で読むなら：SELENIUM_URL=http://selenium-hub:4444
+      # （任意）Chromeをさらに軽く：CHROME_FLAGS="--headless=new --no-sandbox --disable-dev-shm-usage --disable-gpu"
     ports:
       - "8082:8081"
     restart: unless-stopped
-    mem_limit: 512m
+    mem_limit: 256m
     networks:
       - app-network
 
@@ -99,3 +105,4 @@ volumes:
 networks:
   app-network:
     driver: bridge
+
