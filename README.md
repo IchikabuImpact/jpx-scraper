@@ -1,157 +1,144 @@
 # JPX Scraper
 
-JPX Scraper is a Go application that scrapes stock data from JPX using Selenium and Docker.
+JPX Scraper is a Go/Gin API that scrapes stock data from Kabutan, caches the JSON in MariaDB, and exposes it through `/scrape?ticker=XXXX`. The application is built to run inside Docker along with Selenium Grid for browser automation.
+
+## Architecture
+
+```text
+                          +--------------------------+
+                          |    Reverse Proxy (opt)   |
+                          |    :443 -> :8082         |
+                          +------------+-------------+
+                                       |
+                                       v
++--------------------+    +------------+-------------+    +----------------------+
+| Selenium Node      |<-->|   Selenium Hub (4444)    |<-->|   Selenium Clients   |
+| Chrome (1 session) |    +------------+-------------+    +----------------------+
++---------+----------+                 |
+          |                            |
+          |                            v
+          |               +------------+-------------+
+          +-------------->|     JPX Scraper API      |
+                          |   Go HTTP :8081 (host :8082)
+                          |   Waits for DB & Selenium |
+                          +------------+-------------+
+                                       |
+                                       v
+                          +------------+-------------+
+                          |    MariaDB 11.x (3306)   |
+                          |   scrapings cache table  |
+                          +--------------------------+
+```
+
+All containers share a single Docker bridge network created by `docker compose` so services can communicate by name (`mariadb`, `selenium-hub`, `selenium-node`, `jpx-scraper`).
 
 ## Getting Started
 
-### Prerequisites
+### 1. Prepare environment variables
 
-- Go 1.25 or later
-- Docker
-- Docker Compose (optional, but recommended)
-
-### Setup and Installation
+```bash
+cp .env.example .env
+# Edit .env and set strong passwords for MariaDB and the scraper user.
 ```
-Clone the repository
 
-   bash
-   git clone https://github.com/IchikabuImpact/jpx-scraper.git
-   cd jpx-scraper
-Build Docker images
+> **Security note:** Never commit `.env` to source control. The application and Docker Compose read secrets from environment variables at runtime only.
 
-bash
-docker build -t jpx-scraper -f Dockerfile.go .
+### 2. Launch the stack with Docker Compose
+
+```bash
+docker compose --env-file .env up -d --build
+```
+
+This command builds the Go scraper image from `Dockerfile.scraper`, starts MariaDB (with health checks), Selenium Hub/Node, and the scraper API. The scraper waits for MariaDB to become reachable, applies the `scrapings` table schema if needed, and then begins serving traffic on container port `8081` (published to `http://localhost:8082`).
+
+### 3. Verify the API
+
+```bash
+curl "http://localhost:8082/scrape?ticker=1332"
+```
+
+A JSON payload should be returned. MariaDB caches responses for one hour, so repeat requests will hit the database instead of re-scraping until the cache expires.
+
+## Manual build & run fallback
+
+If you cannot use Docker Compose, you can run each component manually. Ensure you export the same variables defined in `.env` before running these commands.
+
+```bash
+# Build images
+docker build -t jpx-scraper -f Dockerfile.scraper .
 docker build -t selenium-hub-custom -f Dockerfile.selenium .
-Running the Application
-Start Selenium Hub and Node
 
-bash
-docker run -d -p 4445:4445 --name selenium-hub --network selenium-network selenium-hub-custom
-docker run -d --network selenium-network --link selenium-hub:hub -e SE_EVENT_BUS_HOST=selenium-hub -e SE_EVENT_BUS_PUBLISH_PORT=4442 -e SE_EVENT_BUS_SUBSCRIBE_PORT=4443 selenium/node-chrome
-Start JPX Scraper
+# Create a network
+docker network create jpx-stack 2>/dev/null || true
 
-bash
-docker run -d -p 8082:8081 --network selenium-network --name jpx-scraper jpx-scraper
-Accessing the Application
-You can access the scraper by visiting the following URL:
+# MariaDB
+docker run -d --name mariadb \
+  --env-file .env \
+  --network jpx-stack \
+  -p 3306:3306 \
+  -v mariadb_data:/var/lib/mysql \
+  mariadb:11.4
 
-bash
-http://localhost:8082/scrape?ticker=1332
-Replace 1332 with the desired stock ticker.
+# Selenium Hub & Node
+docker run -d --name selenium-hub \
+  --network jpx-stack \
+  -p 4444:4444 \
+  selenium-hub-custom
 
-Apache Configuration (Optional)
-If you are using Apache as a reverse proxy, make sure to configure it to forward requests to the JPX Scraper.
+docker run -d --name selenium-node \
+  --network jpx-stack \
+  -e SE_EVENT_BUS_HOST=selenium-hub \
+  -e SE_EVENT_BUS_PUBLISH_PORT=4442 \
+  -e SE_EVENT_BUS_SUBSCRIBE_PORT=4443 \
+  -e SE_NODE_MAX_SESSIONS=1 \
+  selenium/node-chrome:latest
 
-apache
-<VirtualHost *:443>
-    ServerName jpx.pinkgold.space
-    DocumentRoot /var/www/jpx-scraper/public
-    ErrorLog "/var/log/httpd/jpx_pinkgold_space_error_log"
-    CustomLog "/var/log/httpd/jpx_pinkgold_space_access_log" combined
-    <Directory "/var/www/jpx-scraper/public">
-        Options -Indexes +FollowSymLinks
-        AllowOverride all
-        Require all granted
-    </Directory>
-
-    ProxyPass "/scrape" "http://localhost:8082/scrape"
-    ProxyPassReverse "/scrape" "http://localhost:8082/scrape"
-
-    SSLCertificateFile /etc/letsencrypt/live/jpx.pinkgold.space/fullchain.pem
-    SSLCertificateKeyFile /etc/letsencrypt/live/jpx.pinkgold.space/privkey.pem
-    Include /etc/letsencrypt/options-ssl-apache.conf
-</VirtualHost>
-Debugging and Troubleshooting
-View Docker logs
-
-docker logs jpx-scraper
-docker logs selenium-hub
-Check active ports
-
-docker exec -it jpx-scraper /bin/sh
-netstat -tuln
-Install utilities inside Docker container (if needed)
-
-docker exec -it jpx-scraper /bin/sh
-apk update
-apk add curl
-Test scraper locally
-
-curl http://localhost:8082/scrape?ticker=1332
-Known Issues
-Ensure that the ports 4445 (Selenium Hub) and 8082 (JPX Scraper) are not being used by other applications.
-If the application fails to start, check the Docker logs for errors and ensure that all prerequisites are installed.
-Contributing
-Feel free to fork this project and submit pull requests. For major changes, please open an issue first to discuss what you would like to change.
-
-License
-This project is licensed under the MIT License.
-
-Ports Summary
-Component	Host Port	Container Port	Description
-Selenium Hub	4445	4445	Selenium Grid Hub
-JPX Scraper	8082	8081	JPX Scraper API
-Apache	443	N/A	HTTPS Proxy to JPX Scraper
-Commands for Running and Debugging
-Start Selenium Hub and Node:
-
-docker run -d -p 4445:4445 --name selenium-hub --network selenium-network selenium-hub-custom
-docker run -d --network selenium-network --link selenium-hub:hub -e SE_EVENT_BUS_HOST=selenium-hub -e SE_EVENT_BUS_PUBLISH_PORT=4442 -e SE_EVENT_BUS_SUBSCRIBE_PORT=4443 selenium/node-chrome
-Start JPX Scraper:
-
-docker run -d -p 8082:8081 --network selenium-network --name jpx-scraper jpx-scraper
-View Docker logs:
-
-docker logs jpx-scraper
-docker logs selenium-hub
-Check active ports:
-
-docker exec -it jpx-scraper /bin/sh
-netstat -tuln
-Install utilities inside Docker container:
-
-docker exec -it jpx-scraper /bin/sh
-apk update
-apk add curl
-Test scraper locally:
-
-curl http://localhost:8082/scrape?ticker=1332
+# Scraper API
+docker run -d --name jpx-scraper \
+  --network jpx-stack \
+  --env-file .env \
+  -p 8082:8081 \
+  jpx-scraper
 ```
-## System Architecture
 
-The following diagram illustrates the overall architecture of the JPX Scraper.
+When you are finished, stop everything with `docker compose down` (or stop the individual containers created manually).
 
-```plaintext
-+------------------+                  +-------------------+
-|                  |                  |                   |
-|  Selenium Hub    |                  |   Selenium Node   |
-|  (selenium-hub)  |                  | (selenium-node)   |
-|  ポート 4444     |                  |                   |
-+--------+---------+                  +---------+---------+
-         |                                      |
-         |                                      |
-         |                                      |
-         |                                      |
-+--------v---------+                  +---------v---------+
-|                  |                  |                   |
-|  Event Bus       |                  |   Event Bus       |
-|  Publish: 4442   +----------------->|  Subscribe: 4443  |
-|  Subscribe: 4443 <------------------+  Publish: 4442    |
-+--------+---------+                  +---------+---------+
-         |                                      |
-         |          +---------------------------+
-         |          |
-         |          |
-         v          v
-+--------+---------+                  +--------------------+
-|                  |                  |                    |
-|  JPX Scraper     |                  |  Apache            |
-|  (jpx-scraper)   |                  |  (Reverse Proxy)   |
-|  ポート 8081     |                  |                    |
-+--------+---------+                  +---------+----------+
-         |                                      |
-         |                                      |
-         +--------------------------------------+
-                      selenium-network
+## Ports & health checks
 
+| Service        | Host Port | Container Port | Health Check                                  |
+|----------------|-----------|----------------|-----------------------------------------------|
+| MariaDB        | 3306      | 3306           | `mysqladmin ping` inside the container        |
+| Selenium Hub   | 4444      | 4444           | `http://localhost:4444/status`                |
+| Selenium Node  | (n/a)     | internal only  | Depends on Selenium Hub health                |
+| JPX Scraper    | 8082      | 8081           | Waits on MariaDB/Selenium health before start |
 
+## Logs & troubleshooting
+
+- Follow container logs: `docker compose logs -f mariadb` (or `selenium-hub`, `selenium-node`, `scraper`).
+- Open a shell inside the scraper: `docker compose exec scraper sh`.
+- Inspect MariaDB: `docker compose exec mariadb mariadb -u "$MARIADB_USER" -p"$MARIADB_PASSWORD" "$MARIADB_DATABASE"`.
+- Test service reachability: `curl http://localhost:4444/status` for Selenium Hub, `curl http://localhost:8082/scrape?ticker=1332` for the API.
+- Rebuild after code changes: `docker compose --env-file .env up -d --build`.
+
+If the scraper reports database connection errors, confirm MariaDB is healthy (`docker compose ps`), credentials in `.env` match the Compose configuration, and no firewall is blocking port `3306` locally.
+
+## Local development
+
+You can run Go tests and builds directly on your workstation without Docker:
+
+```bash
+go test ./...
+go build ./...
+```
+
+The scraper builds a MariaDB DSN from environment variables, waits for the database to be ready using `PingContext`, ensures the `scrapings` table exists (idempotently), and configures connection pooling (`DB_MAX_OPEN_CONNS`, `DB_MAX_IDLE_CONNS`, `DB_CONN_MAX_LIFETIME`).
+
+## Contributing
+
+1. Fork the repository and create a feature branch.
+2. Ensure `go test ./...` passes and linting is clean.
+3. Submit a pull request describing your changes.
+
+## License
+
+This project is licensed under the MIT License.

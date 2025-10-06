@@ -117,7 +117,7 @@ func GetStockDataJSON(ticker string, db *sql.DB) (string, error) {
         REPLACE INTO scrapings (ticker, jsond, updated)
         VALUES (?, ?, ?)
         `
-		_, err := db.Exec(insertQuery, data.Ticker, jsonData, time.Now())
+		_, err := db.Exec(insertQuery, data.Ticker, jsonData, time.Now().UTC())
 		if err != nil {
 			fmt.Printf("Error inserting data into database: %v\n", err)
 		}

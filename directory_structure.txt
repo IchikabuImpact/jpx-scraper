@@ -2,7 +2,7 @@ Directory structure (/var/www/jpx-scraper):
 | | |____jpx-scraper
 | | | |____Dockerfile.selenium
 | | | |____go.sum
-| | | |____Dockerfile.go
+| | | |____Dockerfile.scraper
 | | | |____entrypoint.sh
 | | | |____go.mod
 | | | |____struct.sh
