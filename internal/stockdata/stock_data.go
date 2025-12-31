@@ -23,6 +23,7 @@ type StockData struct {
 	PER           string `json:"per,omitempty"`
 	PBR           string `json:"pbr,omitempty"`
 	MarketCap     string `json:"marketCap,omitempty"`
+	Volume        string `json:"volume,omitempty"`
 }
 
 // ValidateTicker checks if the ticker is valid (only contains letters and numbers)
@@ -72,6 +73,12 @@ func GetStockData(ticker string) (StockData, error) {
 	per := strings.TrimSpace(doc.Find("#stockinfo_i3 tbody tr:nth-child(1) td:nth-child(1)").Text())  // PER
 	pbr := strings.TrimSpace(doc.Find("#stockinfo_i3 tbody tr:nth-child(1) td:nth-child(2)").Text())  // PBR
 	marketCap := strings.TrimSpace(doc.Find("#stockinfo_i3 tbody tr:nth-child(2) td").First().Text()) // 時価総額
+	volumeRaw := strings.TrimSpace(doc.Find("#kobetsu_left table:nth-of-type(2) tbody tr:nth-child(1) td").First().Text())
+	if volumeRaw == "" {
+		volumeRaw = strings.TrimSpace(doc.Find("body div:nth-child(1) div:nth-child(3) div:nth-child(1) div:nth-child(3) table:nth-of-type(2) tbody tr:nth-child(1) td").First().Text())
+	}
+	volume := strings.TrimSpace(strings.ReplaceAll(volumeRaw, "\u00a0", " "))
+	volume = strings.TrimSpace(strings.TrimSuffix(volume, "株"))
 	return StockData{
 		Ticker:        ticker,
 		CompanyName:   companyName,
@@ -81,6 +88,7 @@ func GetStockData(ticker string) (StockData, error) {
 		PER:           per,
 		PBR:           pbr,
 		MarketCap:     marketCap,
+		Volume:        volume,
 	}, nil
 }
 
