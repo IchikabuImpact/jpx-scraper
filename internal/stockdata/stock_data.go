@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	urlpkg "net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -47,14 +48,32 @@ func GetStockData(ticker string) (StockData, error) {
 	)
 
 	url := fmt.Sprintf(KabutanURL, ticker)
-	resp, err := http.Get(url)
+	time.Sleep(400 * time.Millisecond)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return StockData{}, fmt.Errorf("failed to build request: %v", err)
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+	req.Header.Set("Accept-Language", "ja,en-US;q=0.9,en;q=0.8")
+	req.Header.Set("Referer", "https://kabutan.jp/")
+
+	client := &http.Client{
+		Timeout: 15 * time.Second,
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		return StockData{}, fmt.Errorf("failed to fetch data: %v", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return StockData{}, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		parsed, parseErr := urlpkg.Parse(url)
+		host := ""
+		if parseErr == nil {
+			host = parsed.Host
+		}
+		return StockData{}, fmt.Errorf("unexpected status code: %d from %s", resp.StatusCode, host)
 	}
 
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
