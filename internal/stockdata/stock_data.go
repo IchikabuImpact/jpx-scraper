@@ -48,6 +48,8 @@ func GetStockData(ticker string) (StockData, error) {
 	)
 
 	url := fmt.Sprintf(KabutanURL, ticker)
+
+	time.Sleep(400 * time.Millisecond)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return StockData{}, fmt.Errorf("failed to build request: %v", err)
