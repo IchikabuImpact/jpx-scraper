@@ -3,7 +3,7 @@ set -euo pipefail
 
 # ========= Config =========
 ENV_FILE="${ENV_FILE:-.env}"          # 例: ENV_FILE=.env.production
-NODES_DEFAULT="${NODES:-4}"           # 例: NODES=2
+NODES_DEFAULT="${NODES:-1}"           # 例: NODES=2
 WAIT_TIMEOUT="${WAIT_TIMEOUT:-120}"   # ヘルス待ち秒数
 PRUNE_MODE="${PRUNE_MODE:-deep}"      # deep|safe|none  (既定: deep = ボリューム含め全部prune)
 NODES="${1:-$NODES_DEFAULT}"          # 第1引数でノード数指定可
@@ -81,4 +81,3 @@ echo "• Nodes: ${NODES}"
 echo "• Prune: ${PRUNE_MODE}"
 echo "• Check:  docker compose ps"
 echo "• Logs:   docker logs mariadb --tail=50"
-
