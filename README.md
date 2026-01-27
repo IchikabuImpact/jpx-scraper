@@ -126,6 +126,33 @@ mysql -h 127.0.0.1 -P 3307 -u "$MARIADB_USER" -p"$MARIADB_PASSWORD" "$MARIADB_DA
 
 ---
 
+## Selenium Grid (single-node) ops checklist
+
+1) Start (single node is the default in this compose file):
+```bash
+docker compose up -d
+```
+
+2) Verify exactly one node container is running and hub is healthy:
+```bash
+docker ps --filter "name=selenium-node"
+docker inspect --format='{{.State.Health.Status}}' jpx-scraper-selenium-hub-1
+```
+
+3) Smoke test: confirm the scraper can reach Selenium via the hub:
+```bash
+curl -s "http://localhost:8082/scrape?ticker=8306" >/dev/null
+docker logs jpx-scraper | tail -n 50
+```
+
+4) Resource check (low-memory VPS):
+```bash
+free -hm
+docker stats --no-stream
+```
+
+---
+
 ## Environment & Compose (compact profile)
 
 Key variables (from `.env`):
@@ -199,4 +226,3 @@ Health checks (Compose):
 
 ## License
 MIT
-
