@@ -42,6 +42,8 @@ services:
       retries: 5
       start_period: 10s
     restart: unless-stopped
+    environment:
+      - SE_JAVA_OPTS=-Xms64m -Xmx256m
     mem_limit: 256m
     networks:
       - app-network
@@ -60,7 +62,7 @@ services:
       - SE_NODE_OVERRIDE_MAX_SESSIONS=true
       - SE_NODE_SESSION_TIMEOUT=120
       - SE_ENABLE_TRACING=false
-      - JAVA_OPTS=-Xmx256m
+      - SE_JAVA_OPTS=-Xms128m -Xmx256m
     restart: unless-stopped
     shm_size: 256m
     mem_limit: 384m
@@ -105,4 +107,3 @@ volumes:
 networks:
   app-network:
     driver: bridge
-
