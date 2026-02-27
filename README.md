@@ -4,6 +4,30 @@ JPX Scraper is a Go API that scrapes stock data (Kabutan), **caches the JSON in 
 ```
 GET /scrape?ticker=8306
 ```
+## まず直感的に: これで何ができる？
+
+銘柄コード（ticker）を1つ渡すだけで、株価関連の主要指標を **JSONでまとめて取得** できます。
+
+```bash
+curl -i "http://127.0.0.1:8085/scrape?ticker=5020"
+```
+
+```json
+{
+  "ticker":"5020",
+  "companyName":"5020　ＥＮＥＯＳホールディングス",
+  "currentPrice":"1,488.0円",
+  "previousClose":"1,447.5 (02/26)",
+  "dividendYield":"1.75％",
+  "per":"18.6倍",
+  "pbr":"1.3倍",
+  "marketCap":"4兆32億円",
+  "volume":"11,494,600"
+}
+```
+
+つまり、フロントエンドや他システムからは「`/scrape?ticker=xxxx` を叩けば、画面表示や分析に使いやすい最新データが返るAPI」として利用できます。
+
 This README focuses on **what gets created in MariaDB**, **how to verify with SQL**, and **which knobs control cache lifetime**. It also documents the **compact Docker** profile you’re currently running.
 
 ---
