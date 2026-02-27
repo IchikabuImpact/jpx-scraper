@@ -247,6 +247,3 @@ Health checks (Compose):
 - **Worker/Scheduler** to decouple scraping from HTTP path.
 
 ---
-
-## License
-MIT
