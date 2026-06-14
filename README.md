@@ -136,6 +136,35 @@ Later (when KVS is added), the DB freshness window can be lengthened (e.g., 30 d
 docker compose --env-file .env up -d --build
 ```
 
+### WSL local override
+
+WSL Ubuntu で他プロジェクトから API として再利用するローカル運用では、VPS 用のベース構成はそのままにして `docker-compose.wsl.yml` を重ねます。
+
+```bash
+docker compose \
+  -f docker-compose.yml \
+  -f docker-compose.wsl.yml \
+  --env-file .env \
+  up -d --build
+```
+
+この override は以下だけをローカル向けに変えます。
+- `mariadb` サービスの実体を `mysql:8.0` に切り替える
+- ホスト公開ポートを `13306` / `14444` / `18082` に上げる
+- ベースの `docker-compose.yml` は変更しないので、VPS には影響しない
+
+ローカル `.env` には少なくとも次を入れてください。
+
+```env
+MYSQL_ROOT_PASSWORD=********
+MYSQL_DATABASE=jpx
+MYSQL_USER=jpx
+MYSQL_PASSWORD=********
+MYSQL_HOST_PORT=13306
+SELENIUM_HOST_PORT=14444
+SCRAPER_HOST_PORT=18082
+```
+
 2) Call the API twice (second call should be fast and DB-backed):
 ```bash
 time curl -s "http://localhost:8082/scrape?ticker=8306" >/dev/null

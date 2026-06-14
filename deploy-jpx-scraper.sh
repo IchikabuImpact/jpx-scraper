@@ -50,15 +50,27 @@ wait_healthy() {
   local deadline=$((SECONDS + WAIT_TIMEOUT))
   echo "Waiting for service '$svc' to become healthy (timeout: ${WAIT_TIMEOUT}s)…"
   while true; do
-    local status
-    status="$(docker inspect -f '{{.State.Health.Status}}' "$svc" 2>/dev/null || true)"
-    if [[ "$status" == "healthy" ]]; then
-      echo "Service '$svc' is healthy."
-      return 0
+    local container_ids
+    container_ids="$(docker compose --env-file "$ENV_FILE" ps -q "$svc" 2>/dev/null || true)"
+    if [[ -n "$container_ids" ]]; then
+      local all_healthy=1
+      local cid
+      for cid in $container_ids; do
+        local status
+        status="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$cid" 2>/dev/null || true)"
+        if [[ "$status" != "healthy" && "$status" != "running" ]]; then
+          all_healthy=0
+          break
+        fi
+      done
+      if (( all_healthy )); then
+        echo "Service '$svc' is healthy."
+        return 0
+      fi
     fi
     if (( SECONDS >= deadline )); then
       echo "Timed out waiting for '$svc' to be healthy." >&2
-      docker ps
+      docker compose --env-file "$ENV_FILE" ps || true
       return 1
     fi
     sleep 3
@@ -80,4 +92,4 @@ echo "Deployment completed."
 echo "• Nodes: ${NODES}"
 echo "• Prune: ${PRUNE_MODE}"
 echo "• Check:  docker compose ps"
-echo "• Logs:   docker logs mariadb --tail=50"
+echo "• Logs:   docker compose --env-file \"$ENV_FILE\" logs --tail=50 mariadb"
