@@ -140,6 +140,30 @@ docker compose --env-file .env up -d --build
 
 WSL Ubuntu で他プロジェクトから API として再利用するローカル運用では、VPS 用のベース構成はそのままにして `docker-compose.wsl.yml` を重ねます。
 
+短いコマンドで扱うなら、次を使えます。
+
+```bash
+make wsl-up
+make wsl-ps
+make wsl-logs
+make wsl-scrape TICKER=8306
+make wsl-restart
+make wsl-down
+```
+
+既定では API は `http://127.0.0.1:18082` で待ち受けます。
+
+または:
+
+```bash
+bash scripts/wsl-compose.sh up
+bash scripts/wsl-compose.sh ps
+bash scripts/wsl-compose.sh logs scraper
+bash scripts/wsl-compose.sh down
+```
+
+内部的には次の compose 構成を呼びます。
+
 ```bash
 docker compose \
   -f docker-compose.yml \
