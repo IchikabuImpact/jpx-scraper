@@ -1,6 +1,6 @@
 # JPX Scraper — Compact Architecture & Ops Guide (develop)
 
-JPX Scraper is a Go API that scrapes stock data (Kabutan), **caches the JSON in MariaDB**, and serves it via HTTP:
+JPX Scraper is a Go API that scrapes stock data (Kabutan), **caches the JSON in MySQL**, and serves it via HTTP:
 ```
 GET /scrape?ticker=8306
 ```
@@ -28,7 +28,7 @@ curl -i "http://127.0.0.1:8085/scrape?ticker=5020"
 
 つまり、フロントエンドや他システムからは「`/scrape?ticker=xxxx` を叩けば、画面表示や分析に使いやすい最新データが返るAPI」として利用できます。
 
-This README focuses on **what gets created in MariaDB**, **how to verify with SQL**, and **which knobs control cache lifetime**. It also documents the **compact Docker** profile you’re currently running.
+This README focuses on **what gets created in MySQL**, **how to verify with SQL**, and **which knobs control cache lifetime**. It also documents the **compact Docker** profile you’re currently running.
 
 ---
 
@@ -42,7 +42,7 @@ HTTP (REST, JSON)
 :8082 → container :8081  ───────┐
                                 │ calls
                                 ▼
-          Scraper (Go) ── DB cache (MariaDB 11.x)
+          Scraper (Go) ── DB cache (MySQL 8.x)
                     └─> table: scrapings (1 row per ticker, JSON payload)
 ```
 
@@ -73,7 +73,7 @@ CREATE TABLE IF NOT EXISTS scrapings (
 
 ---
 
-## How to connect to MariaDB and verify with SQL
+## How to connect to MySQL and verify with SQL
 
 ### From the host (Docker published port)
 
@@ -84,7 +84,7 @@ CREATE TABLE IF NOT EXISTS scrapings (
 mysql -h 127.0.0.1 -P 3307 -uroot -p
 
 # app user
-mysql -h 127.0.0.1 -P 3307 -u "$MARIADB_USER" -p"$MARIADB_PASSWORD" "$MARIADB_DATABASE"
+mysql -h 127.0.0.1 -P 3307 -u "$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE"
 ```
 
 > **Always pass `-h 127.0.0.1`** when using the host client. Without `-h`, the client may try a UNIX socket and hit a different local server.
@@ -173,9 +173,8 @@ docker compose \
 ```
 
 この override は以下だけをローカル向けに変えます。
-- `mariadb` サービスの実体を `mysql:8.0` に切り替える
 - ホスト公開ポートを `13306` / `14444` / `18082` に上げる
-- ベースの `docker-compose.yml` は変更しないので、VPS には影響しない
+- ベースの `docker-compose.yml` はそのまま使い、VPS とローカルで DB 実体を分けない
 
 ローカル `.env` には少なくとも次を入れてください。
 
@@ -197,7 +196,7 @@ time curl -s "http://localhost:8082/scrape?ticker=8306" >/dev/null
 
 3) Confirm cache content:
 ```bash
-mysql -h 127.0.0.1 -P 3307 -u "$MARIADB_USER" -p"$MARIADB_PASSWORD" "$MARIADB_DATABASE" \
+mysql -h 127.0.0.1 -P 3307 -u "$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" \
   -e "SELECT ticker, LENGTH(jsond) bytes, updated FROM scrapings WHERE ticker='8306'"
 ```
 
@@ -234,14 +233,14 @@ docker stats --no-stream
 
 Key variables (from `.env`):
 ```env
-# MariaDB
-MARIADB_ROOT_PASSWORD=********
-MARIADB_DATABASE=jpx
-MARIADB_USER=jpx
-MARIADB_PASSWORD=********
+# MySQL
+MYSQL_ROOT_PASSWORD=********
+MYSQL_DATABASE=jpx
+MYSQL_USER=jpx
+MYSQL_PASSWORD=********
 
 # App DB connection
-DB_HOST=mariadb
+DB_HOST=mysql
 DB_PORT=3306
 DB_NAME=jpx
 DB_USER=jpx
@@ -253,9 +252,9 @@ SE_NODE_MAX_SESSIONS=1
 ```
 
 Health checks (Compose):
-- MariaDB: `mariadb-admin ping --protocol=TCP -h 127.0.0.1 ...`
+- MySQL: `mysqladmin ping --protocol=TCP -h 127.0.0.1 ...`
 - Selenium Hub: `curl -fsS http://localhost:4444/status`
-- Scraper waits until MariaDB/Selenium are reachable.
+- Scraper waits until MySQL/Selenium are reachable.
 
 ---
 
@@ -263,8 +262,36 @@ Health checks (Compose):
 
 - **Connected to the wrong DB**: always include `-h 127.0.0.1 -P 3307` on the host, or exec into the container:
   ```bash
-  docker exec -it mariadb sh -lc 'mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" -e "SHOW DATABASES"'
+  docker compose exec mysql sh -lc 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e "SHOW DATABASES"'
   ```
+
+## VPS rebuild after switching to MySQL
+
+VPS 側では `.env` を MySQL 用に合わせたうえで、キャッシュ DB を作り直す前提なら次で再構築できます。
+
+```env
+MYSQL_ROOT_PASSWORD=********
+MYSQL_DATABASE=jpx
+MYSQL_USER=jpx
+MYSQL_PASSWORD=********
+
+DB_HOST=mysql
+DB_PORT=3306
+DB_NAME=jpx
+DB_USER=jpx
+DB_PASSWORD=********
+```
+
+```bash
+PRUNE_MODE=deep ./deploy-jpx-scraper.sh
+```
+
+ボリュームも含めて落としてよいなら、次でも同じです。
+
+```bash
+docker compose --env-file .env down -v --remove-orphans
+docker compose --env-file .env up -d --build
+```
 - **Table not found**: the app **creates** `scrapings` at start; check scraper logs:
   ```bash
   docker logs jpx-scraper | grep -i schema

@@ -1,23 +1,7 @@
 services:
-  mariadb:
-    image: mysql:8.0
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-    command:
-      - --innodb_buffer_pool_size=128M
-      - --max_connections=50
-      - --table_open_cache=256
-      - --tmp_table_size=32M
-      - --performance_schema=OFF
+  mysql:
     ports:
       - "${MYSQL_HOST_PORT:-13306}:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping --silent --protocol=TCP -h 127.0.0.1 -uroot -p\"$${MYSQL_ROOT_PASSWORD}\""]
 
   selenium-hub:
     ports:
@@ -26,6 +10,3 @@ services:
   scraper:
     ports:
       - "${SCRAPER_HOST_PORT:-18082}:8081"
-
-volumes:
-  mysql_data:

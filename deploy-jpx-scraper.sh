@@ -85,11 +85,11 @@ echo "Building & starting with ${NODES} selenium node(s)…"
 docker compose --env-file "$ENV_FILE" up -d --build --scale selenium-node="${NODES}"
 
 # ========= Post-check =========
-wait_healthy mariadb
+wait_healthy mysql
 wait_healthy selenium-hub || true   # 厳格にするなら || true を外す
 
 echo "Deployment completed."
 echo "• Nodes: ${NODES}"
 echo "• Prune: ${PRUNE_MODE}"
 echo "• Check:  docker compose ps"
-echo "• Logs:   docker compose --env-file \"$ENV_FILE\" logs --tail=50 mariadb"
+echo "• Logs:   docker compose --env-file \"$ENV_FILE\" logs --tail=50 mysql"

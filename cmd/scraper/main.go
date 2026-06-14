@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	defaultDBHost          = "mariadb"
+	defaultDBHost          = "mysql"
 	defaultDBPort          = "3306"
 	defaultDBName          = "jpx"
 	defaultDBUser          = "jpx"

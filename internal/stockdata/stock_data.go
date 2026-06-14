@@ -27,6 +27,14 @@ type StockData struct {
 	Volume        string `json:"volume,omitempty"`
 }
 
+func trimDisplaySuffix(value string, suffixes ...string) string {
+	trimmed := strings.TrimSpace(strings.ReplaceAll(value, "\u00a0", " "))
+	for _, suffix := range suffixes {
+		trimmed = strings.TrimSpace(strings.TrimSuffix(trimmed, suffix))
+	}
+	return trimmed
+}
+
 // ValidateTicker checks if the ticker is valid (only contains letters and numbers)
 func ValidateTicker(ticker string) error {
 	validTicker := regexp.MustCompile(`^[A-Za-z0-9]+$`).MatchString
@@ -87,12 +95,12 @@ func GetStockData(ticker string) (StockData, error) {
 		return StockData{}, fmt.Errorf("failed to find company name")
 	}
 
-	currentPrice := strings.TrimSpace(doc.Find(".si_i1_2 .kabuka").Text())
+	currentPrice := trimDisplaySuffix(doc.Find(".si_i1_2 .kabuka").Text(), "円")
 	previousClose := strings.TrimSpace(doc.Find("#kobetsu_left dl dd").First().Text())
-	dividendYield := strings.TrimSpace(doc.Find("#stockinfo_i3 tbody tr:nth-child(1) td:nth-child(3)").Text())
-	per := strings.TrimSpace(doc.Find("#stockinfo_i3 tbody tr:nth-child(1) td:nth-child(1)").Text())  // PER
-	pbr := strings.TrimSpace(doc.Find("#stockinfo_i3 tbody tr:nth-child(1) td:nth-child(2)").Text())  // PBR
-	marketCap := strings.TrimSpace(doc.Find("#stockinfo_i3 tbody tr:nth-child(2) td").First().Text()) // 時価総額
+	dividendYield := trimDisplaySuffix(doc.Find("#stockinfo_i3 tbody tr:nth-child(1) td:nth-child(3)").Text(), "％")
+	per := trimDisplaySuffix(doc.Find("#stockinfo_i3 tbody tr:nth-child(1) td:nth-child(1)").Text(), "倍") // PER
+	pbr := trimDisplaySuffix(doc.Find("#stockinfo_i3 tbody tr:nth-child(1) td:nth-child(2)").Text(), "倍") // PBR
+	marketCap := strings.TrimSpace(doc.Find("#stockinfo_i3 tbody tr:nth-child(2) td").First().Text())     // 時価総額
 	volumeRaw := strings.TrimSpace(doc.Find("#kobetsu_left table:nth-of-type(2) tbody tr:nth-child(1) td").First().Text())
 	if volumeRaw == "" {
 		volumeRaw = strings.TrimSpace(doc.Find("body div:nth-child(1) div:nth-child(3) div:nth-child(1) div:nth-child(3) table:nth-of-type(2) tbody tr:nth-child(1) td").First().Text())

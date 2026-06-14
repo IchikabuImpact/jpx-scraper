@@ -1,18 +1,17 @@
 services:
-  mariadb:
-    image: mariadb:11.4
+  mysql:
+    image: mysql:8.0
     restart: unless-stopped
     env_file:
       - .env
     environment:
-      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
-      MARIADB_DATABASE: ${MARIADB_DATABASE}
-      MARIADB_USER: ${MARIADB_USER}
-      MARIADB_PASSWORD: ${MARIADB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     # メモリ節約系オプション（必要に応じて微調整可）
     command:
       - --innodb_buffer_pool_size=128M
-      - --innodb_log_file_size=64M
       - --max_connections=50
       - --table_open_cache=256
       - --tmp_table_size=32M
@@ -20,9 +19,9 @@ services:
     ports:
       - "3307:3306"
     volumes:
-      - mariadb_data:/var/lib/mysql
+      - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "mariadb-admin ping --silent --protocol=TCP -h 127.0.0.1 -uroot -p\"$${MARIADB_ROOT_PASSWORD}\""]
+      test: ["CMD-SHELL", "mysqladmin ping --silent --protocol=TCP -h 127.0.0.1 -uroot -p\"$${MYSQL_ROOT_PASSWORD}\""]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -75,7 +74,7 @@ services:
       dockerfile: Dockerfile.scraper
     container_name: jpx-scraper
     depends_on:
-      mariadb:
+      mysql:
         condition: service_healthy
       selenium-hub:
         condition: service_healthy
@@ -102,7 +101,7 @@ services:
       - app-network
 
 volumes:
-  mariadb_data:
+  mysql_data:
 
 networks:
   app-network:
