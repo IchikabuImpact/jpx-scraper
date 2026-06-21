@@ -9,6 +9,7 @@ GET /scrape?ticker=8306
 銘柄コード（ticker）を1つ渡すだけで、株価関連の主要指標を **JSONでまとめて取得** できます。
 
 ```bash
+# VPS 上で 8085 にポート転送している場合の例
 curl -i "http://127.0.0.1:8085/scrape?ticker=5020"
 ```
 
@@ -29,6 +30,20 @@ curl -i "http://127.0.0.1:8085/scrape?ticker=5020"
 つまり、フロントエンドや他システムからは「`/scrape?ticker=xxxx` を叩けば、画面表示や分析に使いやすい最新データが返るAPI」として利用できます。
 
 This README focuses on **what gets created in MySQL**, **how to verify with SQL**, and **which knobs control cache lifetime**. It also documents the **compact Docker** profile you’re currently running.
+
+## Which Port Should I Call?
+
+環境ごとに叩くポートが違います。`/scrape` のパス自体は同じで、違うのはホスト側の公開ポートだけです。
+
+| Environment | Start method | Host port | Example |
+| --- | --- | --- | --- |
+| VPS / port-forwarded host | VPS 側の転送設定を利用 | `8085` | `curl -i "http://127.0.0.1:8085/scrape?ticker=5020"` |
+| Local Docker (base compose only) | `docker compose up -d --build` | `8082` | `curl -i "http://127.0.0.1:8082/scrape?ticker=5020"` |
+| Local WSL override | `make wsl-up` / `bash scripts/wsl-compose.sh up` | `18082` | `curl -i "http://127.0.0.1:18082/scrape?ticker=5020"` |
+
+- `docker-compose.yml` 単体では `8082:8081`
+- `docker-compose.wsl.yml` を重ねると `18082:8081`
+- `8085` はアプリのデフォルト公開ポートではなく、VPS 側で別途ポート転送しているときの入口
 
 ---
 
