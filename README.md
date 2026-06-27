@@ -29,6 +29,13 @@ curl -i "http://127.0.0.1:8085/scrape?ticker=5020"
 
 つまり、フロントエンドや他システムからは「`/scrape?ticker=xxxx` を叩けば、画面表示や分析に使いやすい最新データが返るAPI」として利用できます。
 
+> **⚠️ 利用上の注意 — リクエスト間隔について**
+>
+> このAPIは内部でKabutanをスクレイピングしています。スクレイピングが発生するのは **キャッシュが古い（または存在しない）場合のみ** ですが、短時間に大量の異なるティッカーをリクエストするとKabutanのサーバーに負荷をかけます。
+>
+> - **目安: 1〜3リクエスト / 秒以内** に抑えてください
+> - 連続して叩く場合は `time.Sleep` や `time.Tick` などで間隔を設けてください
+
 This README focuses on **what gets created in MySQL**, **how to verify with SQL**, and **which knobs control cache lifetime**. It also documents the **compact Docker** profile you’re currently running.
 
 ## Which Port Should I Call?
