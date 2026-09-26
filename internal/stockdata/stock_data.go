@@ -20,6 +20,10 @@ type StockData struct {
 	CompanyName   string `json:"companyName"`
 	CurrentPrice  string `json:"currentPrice"`
 	PreviousClose string `json:"previousClose"`
+	Open          string `json:"open,omitempty"`
+	High          string `json:"high,omitempty"`
+	Low           string `json:"low,omitempty"`
+	Close         string `json:"close,omitempty"`
 	DividendYield string `json:"dividendYield"`
 	PER           string `json:"per,omitempty"`
 	PBR           string `json:"pbr,omitempty"`
@@ -33,6 +37,33 @@ func trimDisplaySuffix(value string, suffixes ...string) string {
 		trimmed = strings.TrimSpace(strings.TrimSuffix(trimmed, suffix))
 	}
 	return trimmed
+}
+
+// ohlcFromKobetsuTable reads the open/high/low/close table in #kobetsu_left,
+// matching rows by their <th> label text so it stays correct even if row order changes.
+func ohlcFromKobetsuTable(doc *goquery.Document) (open, high, low, close string) {
+	// Label constants match Kabutan's Japanese row headers exactly (open/high/low/close).
+	const (
+		labelOpen  = "\u59cb\u5024"
+		labelHigh  = "\u9ad8\u5024"
+		labelLow   = "\u5b89\u5024"
+		labelClose = "\u7d42\u5024"
+	)
+	doc.Find("#kobetsu_left table:nth-of-type(1) tbody tr").Each(func(_ int, row *goquery.Selection) {
+		label := strings.TrimSpace(row.Find("th").First().Text())
+		value := strings.TrimSpace(row.Find("td").First().Text())
+		switch label {
+		case labelOpen:
+			open = value
+		case labelHigh:
+			high = value
+		case labelLow:
+			low = value
+		case labelClose:
+			close = value
+		}
+	})
+	return open, high, low, close
 }
 
 // ValidateTicker checks if the ticker is valid (only contains letters and numbers)
@@ -97,6 +128,7 @@ func GetStockData(ticker string) (StockData, error) {
 
 	currentPrice := trimDisplaySuffix(doc.Find(".si_i1_2 .kabuka").Text(), "円")
 	previousClose := strings.TrimSpace(doc.Find("#kobetsu_left dl dd").First().Text())
+	open, high, low, closePrice := ohlcFromKobetsuTable(doc)
 	dividendYield := trimDisplaySuffix(doc.Find("#stockinfo_i3 tbody tr:nth-child(1) td:nth-child(3)").Text(), "％")
 	per := trimDisplaySuffix(doc.Find("#stockinfo_i3 tbody tr:nth-child(1) td:nth-child(1)").Text(), "倍") // PER
 	pbr := trimDisplaySuffix(doc.Find("#stockinfo_i3 tbody tr:nth-child(1) td:nth-child(2)").Text(), "倍") // PBR
@@ -112,6 +144,10 @@ func GetStockData(ticker string) (StockData, error) {
 		CompanyName:   companyName,
 		CurrentPrice:  currentPrice,
 		PreviousClose: previousClose,
+		Open:          open,
+		High:          high,
+		Low:           low,
+		Close:         closePrice,
 		DividendYield: dividendYield,
 		PER:           per,
 		PBR:           pbr,
