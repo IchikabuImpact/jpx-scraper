@@ -20,15 +20,15 @@ type StockData struct {
 	CompanyName   string `json:"companyName"`
 	CurrentPrice  string `json:"currentPrice"`
 	PreviousClose string `json:"previousClose"`
-	Open          string `json:"open,omitempty"`
-	High          string `json:"high,omitempty"`
-	Low           string `json:"low,omitempty"`
-	Close         string `json:"close,omitempty"`
 	DividendYield string `json:"dividendYield"`
 	PER           string `json:"per,omitempty"`
 	PBR           string `json:"pbr,omitempty"`
 	MarketCap     string `json:"marketCap,omitempty"`
 	Volume        string `json:"volume,omitempty"`
+	Open          string `json:"open,omitempty"`
+	High          string `json:"high,omitempty"`
+	Low           string `json:"low,omitempty"`
+	Close         string `json:"close,omitempty"`
 }
 
 func trimDisplaySuffix(value string, suffixes ...string) string {
@@ -144,15 +144,15 @@ func GetStockData(ticker string) (StockData, error) {
 		CompanyName:   companyName,
 		CurrentPrice:  currentPrice,
 		PreviousClose: previousClose,
-		Open:          open,
-		High:          high,
-		Low:           low,
-		Close:         closePrice,
 		DividendYield: dividendYield,
 		PER:           per,
 		PBR:           pbr,
 		MarketCap:     marketCap,
 		Volume:        volume,
+		Open:          open,
+		High:          high,
+		Low:           low,
+		Close:         closePrice,
 	}, nil
 }
 
