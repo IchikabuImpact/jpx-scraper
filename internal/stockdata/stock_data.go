@@ -49,7 +49,12 @@ func ohlcFromKobetsuTable(doc *goquery.Document) (open, high, low, close string)
 		labelLow   = "\u5b89\u5024"
 		labelClose = "\u7d42\u5024"
 	)
-	doc.Find("#kobetsu_left table:nth-of-type(1) tbody tr").Each(func(_ int, row *goquery.Selection) {
+	// Direct-child combinator matters here: the PTS (after-hours) section further down
+	// #kobetsu_left also has a table with the same 始値/高値/安値 <th> labels, filled with
+	// "－" placeholders for tickers with no PTS trading. A plain descendant selector matches
+	// that nested table too (it's table #1 within its own parent, div.stock_pts_div), and
+	// since it comes later in the document its placeholders silently overwrite the real values.
+	doc.Find("#kobetsu_left > table:nth-of-type(1) tbody tr").Each(func(_ int, row *goquery.Selection) {
 		label := strings.TrimSpace(row.Find("th").First().Text())
 		value := strings.TrimSpace(row.Find("td").First().Text())
 		switch label {
